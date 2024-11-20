@@ -1,5 +1,5 @@
 {
-    "name": "nostriphant/nip19",
+    "name": "nostriphant/nip-19",
     "description": "Nostr NIP-19 bech32-encoded entities in PHP",
     "type": "library",
     "require": {
