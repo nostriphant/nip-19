@@ -89,15 +89,6 @@ readonly class Bech32 {
         return array_reduce($bytes, fn(string $utf8, int $item) => $utf8 .= chr($item), '');
     }
 
-    private static function convertBech32ToHex(#[\SensitiveParameter] string $bech32_key): string {
-        try {
-            return (new self($bech32_key))->data->data;
-        } catch (\Exception) {
-            return '';
-        }
-    }
-
-
     static function fromHexToBytes(#[\SensitiveParameter] string $hex_key): array {
         return array_map('hexdec', str_split($hex_key, 2));
     }
@@ -123,14 +114,6 @@ readonly class Bech32 {
         return $uint8Array;
     }
 
-    private static function convertHexToBech32(#[\SensitiveParameter] string $hex_key, string $prefix) {
-        try {
-            return self::encodeRaw($prefix, self::fromHexToBytes($hex_key));
-        } catch (\Exception) {
-            return '';
-        }
-    }
-
     static function toNpub(string $hex) {
         return self::convertHexToBech32($hex, 'npub');
     }
@@ -146,6 +129,22 @@ readonly class Bech32 {
 
     static function fromNsec(#[\SensitiveParameter] string $nsec): string {
         return self::convertBech32ToHex($nsec, 'nsec');
+    }
+
+    private static function convertHexToBech32(#[\SensitiveParameter] string $hex_key, string $prefix) {
+        try {
+            return self::encodeRaw($prefix, self::fromHexToBytes($hex_key));
+        } catch (\Exception) {
+            return '';
+        }
+    }
+
+    private static function convertBech32ToHex(#[\SensitiveParameter] string $bech32_key): string {
+        try {
+            return (new self($bech32_key))->data->data;
+        } catch (\Exception) {
+            return '';
+        }
     }
 
     static function isValid(string $expected_type, string $bech32) {
@@ -216,14 +215,6 @@ readonly class Bech32 {
         return \array_merge($expand1, [0], $expand2);
     }
 
-    static function decodeBits(array $data) {
-        return self::convertBits($data, 5, 8, false);
-    }
-
-    static function encodeBits(array $data) {
-        return self::convertBits($data, 8, 5, true);
-    }
-
     static function convertBits(array $data, int $fromBits, int $toBits, bool $pad = true): array {
         $inLen = count($data);
         $acc = 0;
@@ -278,7 +269,7 @@ readonly class Bech32 {
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
     static function encodeRaw(string $hrp, array $bytes): string {
-        $words = self::encodeBits($bytes);
+        $words = self::convertBits($bytes, 8, 5, true);
         $checksum = self::createChecksum($hrp, $words);
         $characters = array_merge($words, $checksum);
 
@@ -362,6 +353,6 @@ readonly class Bech32 {
             throw new \Exception('Invalid bech32 checksum');
         }
 
-        return new (self::TYPE_MAP[$hrp])(self::decodeBits(array_slice($data, 0, -6)));
+        return new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -6), 5, 8, false));
     }
 }
