@@ -15,9 +15,65 @@ readonly class Bech32 {
         'ncryptsec' => Data\NCryptSec::class,
         'nevent' => Data\NEvent::class
     ];
+    const BECH32_MAX_LENGTH = 5000;
 
     public function __construct(private string $bech32) {
-        $this->data = self::decodeRaw($this->bech32, 5000);
+        $length = strlen($bech32);
+
+        if ($length < 8 || $length > self::BECH32_MAX_LENGTH) {
+            throw new \Exception("invalid string length: $length ($bech32). Expected (8.." . self::BECH32_MAX_LENGTH . ")");
+        }
+
+        $chars = array_values(unpack('C*', $bech32));
+
+        $haveUpper = false;
+        $haveLower = false;
+        $positionOne = -1;
+
+        for ($i = 0; $i < $length; $i++) {
+            $x = $chars[$i];
+            if ($x < 33 || $x > 126) {
+                throw new \Exception('Out of range character in bech32 string');
+            }
+
+            if ($x >= 0x61 && $x <= 0x7a) {
+                $haveLower = true;
+            }
+
+            if ($x >= 0x41 && $x <= 0x5a) {
+                $haveUpper = true;
+                $x = $chars[$i] = $x + 0x20;
+            }
+
+            if ($x === 0x31) {
+                $positionOne = $i;
+            }
+        }
+
+        if ($haveUpper && $haveLower) {
+            throw new \Exception('Data contains mixture of higher/lower case characters');
+        }
+
+        if ($positionOne === -1) {
+            throw new \Exception("Missing separator character");
+        }
+
+        if ($positionOne < 1) {
+            throw new \Exception("Empty HRP");
+        }
+
+        if (($positionOne + 7) > $length) {
+            throw new \Exception('Too short checksum');
+        }
+
+        $hrp = \pack("C*", ...\array_slice($chars, 0, $positionOne));
+
+        $data = array_values(array_map(fn($char) => ($char & 0x80) ? -1 : self::CHARKEY_KEY[$char], array_slice($chars, $positionOne + 1)));
+        if (!self::verifyChecksum(new PolyMod($hrp, $data))) {
+            throw new \Exception('Invalid bech32 checksum');
+        }
+
+        $this->data = new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -self::CHECKSUM_LENGTH), 5, 8, false));
     }
 
     public function __get(string $name): mixed {
@@ -254,63 +310,4 @@ readonly class Bech32 {
         -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
         1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1
     ];
-
-    static function decodeRaw(string $sBech, int $limit = 90): Data {
-        $length = strlen($sBech);
-
-        if ($length < 8 || $length > $limit) {
-            throw new \Exception("invalid string length: $length ($sBech). Expected (8..$limit)");
-        }
-
-        $chars = array_values(unpack('C*', $sBech));
-
-        $haveUpper = false;
-        $haveLower = false;
-        $positionOne = -1;
-
-        for ($i = 0; $i < $length; $i++) {
-            $x = $chars[$i];
-            if ($x < 33 || $x > 126) {
-                throw new \Exception('Out of range character in bech32 string');
-            }
-
-            if ($x >= 0x61 && $x <= 0x7a) {
-                $haveLower = true;
-            }
-
-            if ($x >= 0x41 && $x <= 0x5a) {
-                $haveUpper = true;
-                $x = $chars[$i] = $x + 0x20;
-            }
-
-            if ($x === 0x31) {
-                $positionOne = $i;
-            }
-        }
-
-        if ($haveUpper && $haveLower) {
-            throw new \Exception('Data contains mixture of higher/lower case characters');
-        }
-
-        if ($positionOne === -1) {
-            throw new \Exception("Missing separator character");
-        }
-
-        if ($positionOne < 1) {
-            throw new \Exception("Empty HRP");
-        }
-
-        if (($positionOne + 7) > $length) {
-            throw new \Exception('Too short checksum');
-        }
-
-        $hrp = \pack("C*", ...\array_slice($chars, 0, $positionOne));
-
-        $data = array_values(array_map(fn($char) => ($char & 0x80) ? -1 : self::CHARKEY_KEY[$char], array_slice($chars, $positionOne + 1)));
-        if (!self::verifyChecksum(new PolyMod($hrp, $data))) {
-            throw new \Exception('Invalid bech32 checksum');
-        }
-
-        return new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -self::CHECKSUM_LENGTH), 5, 8, false));
-    }
 }
