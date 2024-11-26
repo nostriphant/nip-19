@@ -3,8 +3,7 @@
     "description": "Nostr NIP-19 bech32-encoded entities in PHP",
     "type": "library",
     "require": {
-        "php": "^8.3",
-        "bitwasp/bech32": "^0.0.1"
+        "php": "^8.3"
     },
     "require-dev": {
         "pestphp/pest": "^2.35"
