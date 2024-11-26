@@ -239,7 +239,6 @@ readonly class Bech32 {
         $words = self::convertBits($bytes, 8, 5, true);
         $checksum = self::createChecksum(new PolyMod($hrp, $words));
         $characters = array_merge($words, $checksum);
-
         $encoded = array_map(fn(int $character) => self::CHARSET[$character], $characters);
         return "{$hrp}1" . implode('', $encoded);
     }
@@ -283,7 +282,6 @@ readonly class Bech32 {
                 $x = $chars[$i] = $x + 0x20;
             }
 
-            // find location of last '1' character
             if ($x === 0x31) {
                 $positionOne = $i;
             }
@@ -307,11 +305,7 @@ readonly class Bech32 {
 
         $hrp = \pack("C*", ...\array_slice($chars, 0, $positionOne));
 
-        $data = [];
-        for ($i = $positionOne + 1; $i < $length; $i++) {
-            $data[] = ($chars[$i] & 0x80) ? -1 : self::CHARKEY_KEY[$chars[$i]];
-        }
-
+        $data = array_values(array_map(fn($char) => ($char & 0x80) ? -1 : self::CHARKEY_KEY[$char], array_slice($chars, $positionOne + 1)));
         if (!self::verifyChecksum(new PolyMod($hrp, $data))) {
             throw new \Exception('Invalid bech32 checksum');
         }
