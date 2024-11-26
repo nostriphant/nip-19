@@ -17,7 +17,6 @@ readonly class Bech32 {
     ];
     const BECH32_MAX_LENGTH = 5000;
     const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-    const CHECKSUM_LENGTH = 6;
     const CHARKEY_KEY = [
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -81,11 +80,12 @@ readonly class Bech32 {
         $hrp = \pack("C*", ...\array_slice($chars, 0, $positionOne));
 
         $data = array_values(array_map(fn($char) => ($char & 0x80) ? -1 : self::CHARKEY_KEY[$char], array_slice($chars, $positionOne + 1)));
-        if (!self::verifyChecksum(new PolyMod($hrp, $data))) {
+
+        $stripped = Checksum::validate($hrp, $data);
+        if ($stripped === false) {
             throw new \Exception('Invalid bech32 checksum');
         }
-
-        $this->data = new (self::TYPE_MAP[$hrp])(Bits::decode(array_slice($data, 0, -self::CHECKSUM_LENGTH)));
+        $this->data = new (self::TYPE_MAP[$hrp])(Bits::decode($stripped));
     }
 
     public function __get(string $name): mixed {
@@ -224,25 +224,10 @@ readonly class Bech32 {
         return self::isValid('nevent', $bech32);
     }
 
-    static function createChecksum(PolyMod $polyMod): array {
-        $polyModChecksum = PolyMod::createChecksumFor($polyMod, self::CHECKSUM_LENGTH)() ^ 1;
-        $results = [];
-        for ($i = 0; $i < self::CHECKSUM_LENGTH; $i++) {
-            $results[$i] = ($polyModChecksum >> 5 * (5 - $i)) & 31;
-        }
-
-        return $results;
-    }
-
-    static function verifyChecksum(PolyMod $polyMod): bool {
-        return $polyMod() === 1;
-    }
-
-
     static function encodeRaw(string $hrp, array $bytes): string {
         $words = Bits::encode($bytes);
-        $checksum = self::createChecksum(new PolyMod($hrp, $words));
-        $characters = array_merge($words, $checksum);
+        $checksum = new Checksum(new PolyMod($hrp, $words));
+        $characters = $checksum($words);
         $encoded = array_map(fn(int $character) => self::BECH32_CHARSET[$character], $characters);
         return "{$hrp}1" . implode('', $encoded);
     }
