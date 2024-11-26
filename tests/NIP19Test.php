@@ -9,11 +9,11 @@ it('converts between bech32 and hexidecimal', function () {
     $private_key_hex = '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa';
     $private_key_bech32 = 'nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5';
 
-    expect(Bech32::fromNpub($public_key_bech32))->toBe($public_key_hex);
-    expect(Bech32::toNpub($public_key_hex))->toBe($public_key_bech32);
+    expect((new Bech32($public_key_bech32))->data->data)->toBe($public_key_hex);
+    expect((string) Bech32::npub($public_key_hex))->toBe($public_key_bech32);
 
-    expect(Bech32::fromNsec($private_key_bech32))->toBe($private_key_hex);
-    expect(Bech32::toNsec($private_key_hex))->toBe($private_key_bech32);
+    expect((new Bech32($private_key_bech32))->data->data)->toBe($private_key_hex);
+    expect((string) Bech32::nsec($private_key_hex))->toBe($private_key_bech32);
 });
 //;
 //import { test, expect, describe } from 'bun:test';
@@ -33,19 +33,17 @@ it('converts between bech32 and hexidecimal', function () {
 
 it('encodes and decodes nsec', function () {
     $private_key_hex = '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa';
-    $nsec = Bech32::toNsec($private_key_hex);
-    $bech32 = new Bech32($nsec);
-    expect('' . $bech32)->toMatch('/nsec1\w+/');
+    $bech32 = Bech32::nsec($private_key_hex);
+    expect((string) $bech32)->toMatch('/nsec1\w+/');
     expect($bech32->type)->toEqual('nsec');
     expect($bech32->data->data)->toEqual($private_key_hex);
 });
 
 it('encodes and decodes npub', function () {
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
-    $npub = Bech32::toNpub($public_key_hex);
-    $bech32 = new Bech32($npub);
-    expect('' . $bech32)->toMatch('/npub1\w+/');
-        expect($bech32->type)->toEqual('npub');
+    $bech32 = Bech32::npub($public_key_hex);
+    expect((string) $bech32)->toMatch('/npub1\w+/');
+    expect($bech32->type)->toEqual('npub');
     expect($bech32->data->data)->toEqual($public_key_hex);
 });
 
@@ -54,8 +52,8 @@ it('encodes and decodes nprofile', function () {
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
     $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
-    expect('' . $bech32)->toMatch('/nprofile1\w+/');
-        expect($bech32->type)->toEqual('nprofile');
+    expect((string) $bech32)->toMatch('/nprofile1\w+/');
+    expect($bech32->type)->toEqual('nprofile');
     expect($bech32->data->pubkey)->toEqual($public_key_hex);
     expect($bech32->data->relays)->toContain('wss://relay.nostr.example.mydomain.example.com');
     expect($bech32->data->relays)->toContain('wss://nostr.banana.com');
@@ -65,7 +63,7 @@ it('decodes nprofile without relays', function () {
     $public_key_hex = '97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322';
     $relays = [];
     $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
-    expect('' . $bech32)->toMatch('/nprofile1\w+/');
+    expect((string) $bech32)->toMatch('/nprofile1\w+/');
     expect($bech32->type)->toEqual('nprofile');
     expect($bech32->data->pubkey)->toEqual($public_key_hex);
     expect($bech32->data->relays)->toBeEmpty();
@@ -81,8 +79,8 @@ it('encode and decode naddr', function () {
             kind: 30023,
             identifier: 'banana'
     );
-    expect('' . $bech32)->toMatch('/naddr1\w+/');
-        expect($bech32->type)->toEqual('naddr');
+    expect((string) $bech32)->toMatch('/naddr1\w+/');
+    expect($bech32->type)->toEqual('naddr');
     expect($bech32->data->pubkey)->toEqual($public_key_hex);
     expect($bech32->data->relays)->toContain($relays[0]);
     expect($bech32->data->relays)->toContain($relays[1]);
@@ -99,7 +97,7 @@ it('encode and decode nevent', function () {
             relays: $relays,
             kind: 30023,
     );
-    expect('' . $bech32)->toMatch('/nevent1\w+/');
+    expect((string) $bech32)->toMatch('/nevent1\w+/');
     expect($bech32->type)->toEqual('nevent');
     expect($bech32->data->id)->toEqual($public_key_hex);
     expect($bech32->data->relays)->toContain($relays[0]);
@@ -115,7 +113,7 @@ it('encode and decode nevent with kind 0', function () {
             relays: $relays,
             kind: 0,
     );
-    expect('' . $bech32)->toMatch('/nevent1\w+/');
+    expect((string) $bech32)->toMatch('/nevent1\w+/');
     expect($bech32->type)->toEqual('nevent');
     expect($bech32->data->id)->toEqual($public_key_hex);
     expect($bech32->data->relays)->toContain($relays[0]);
@@ -132,7 +130,7 @@ it('encode and decode naddr with empty "d"', function () {
             relays: $relays,
             kind: 3,
     );
-    expect('' . $bech32)->toMatch('/naddr\w+/');
+    expect((string) $bech32)->toMatch('/naddr\w+/');
     expect($bech32->type)->toEqual('naddr');
     expect($bech32->data->identifier)->toEqual('');
     expect($bech32->data->relays)->toContain('wss://relay.nostr.example.mydomain.example.com');
