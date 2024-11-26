@@ -16,6 +16,18 @@ readonly class Bech32 {
         'nevent' => Data\NEvent::class
     ];
     const BECH32_MAX_LENGTH = 5000;
+    const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    const CHECKSUM_LENGTH = 6;
+    const CHARKEY_KEY = [
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        15, -1, 10, 17, 21, 20, 26, 30, 7, 5, -1, -1, -1, -1, -1, -1,
+        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
+        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1,
+        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
+        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1
+    ];
 
     public function __construct(private string $bech32) {
         $length = strlen($bech32);
@@ -289,25 +301,12 @@ readonly class Bech32 {
         return $polyMod() === 1;
     }
 
-    const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-    const CHECKSUM_LENGTH = 6;
 
     static function encodeRaw(string $hrp, array $bytes): string {
         $words = self::convertBits($bytes, 8, 5, true);
         $checksum = self::createChecksum(new PolyMod($hrp, $words));
         $characters = array_merge($words, $checksum);
-        $encoded = array_map(fn(int $character) => self::CHARSET[$character], $characters);
+        $encoded = array_map(fn(int $character) => self::BECH32_CHARSET[$character], $characters);
         return "{$hrp}1" . implode('', $encoded);
     }
-
-    const CHARKEY_KEY = [
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        15, -1, 10, 17, 21, 20, 26, 30, 7, 5, -1, -1, -1, -1, -1, -1,
-        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
-        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1,
-        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
-        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1
-    ];
 }
