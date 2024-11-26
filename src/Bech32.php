@@ -104,6 +104,10 @@ readonly class Bech32 {
         return $this->bech32;
     }
 
+    public function __invoke(): mixed {
+        return ($this->data)();
+    }
+
     static function array_entries(array $array) {
         return array_map(fn(mixed $key, mixed $value) => [$key, $value], array_keys($array), array_values($array));
     }

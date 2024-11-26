@@ -15,6 +15,11 @@ readonly class Note implements Data {
     }
 
     #[\Override]
+    public function __invoke() {
+        return $this->data;
+    }
+
+    #[\Override]
     static function toBytes(mixed ...$data): array {
         return Bech32::fromHexToBytes($data[0]);
     }

@@ -22,6 +22,11 @@ readonly class NEvent implements Data {
     }
 
     #[\Override]
+    public function __invoke() {
+        return $this;
+    }
+
+    #[\Override]
     static function toBytes(mixed ...$data): array {
         return Bech32::encodeTLV(
                         [Bech32::fromHexToBytes($data['id'])],
