@@ -185,24 +185,6 @@ readonly class Bech32 {
         return self::isValid('nevent', $bech32);
     }
 
-    const GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
-
-    static function polyMod(array $values) {
-        $numValues = count($values);
-        $chk = 1;
-        for ($i = 0; $i < $numValues; $i++) {
-            $top = $chk >> 25;
-            $chk = ($chk & 0x1ffffff) << 5 ^ $values[$i];
-
-            for ($j = 0; $j < count(self::GENERATOR); $j++) {
-                $value = (($top >> $j) & 1) ? self::GENERATOR[$j] : 0;
-                $chk ^= $value;
-            }
-        }
-
-        return $chk;
-    }
-
     static function hrpExpand(string $hrp) {
         $hrpLen = strlen($hrp);
         $expand1 = [];
@@ -251,7 +233,7 @@ readonly class Bech32 {
 
     static function createChecksum(string $hrp, array $convertedDataChars): array {
         $values = array_merge(self::hrpExpand($hrp, strlen($hrp)), $convertedDataChars);
-        $polyMod = self::polyMod(array_merge($values, [0, 0, 0, 0, 0, 0])) ^ 1;
+        $polyMod = PolyMod::calculate(array_merge($values, [0, 0, 0, 0, 0, 0])) ^ 1;
         $results = [];
         for ($i = 0; $i < 6; $i++) {
             $results[$i] = ($polyMod >> 5 * (5 - $i)) & 31;
@@ -263,7 +245,7 @@ readonly class Bech32 {
     static function verifyChecksum(string $hrp, array $convertedDataChars): bool {
         $expandHrp = self::hrpExpand($hrp);
         $r = array_merge($expandHrp, $convertedDataChars);
-        return self::polyMod($r, count($r)) === 1;
+        return PolyMod::calculate($r) === 1;
     }
 
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
