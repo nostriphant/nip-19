@@ -37,7 +37,7 @@ it('encodes and decodes nsec', function () {
     $bech32 = new Bech32($nsec);
     expect('' . $bech32)->toMatch('/nsec1\w+/');
     expect($bech32->type)->toEqual('nsec');
-    expect($bech32->data[0])->toEqual($private_key_hex);
+    expect($bech32->data->data)->toEqual($private_key_hex);
 });
 
 it('encodes and decodes npub', function () {
@@ -46,7 +46,7 @@ it('encodes and decodes npub', function () {
     $bech32 = new Bech32($npub);
     expect('' . $bech32)->toMatch('/npub1\w+/');
         expect($bech32->type)->toEqual('npub');
-    expect($bech32->data[0])->toEqual($public_key_hex);
+    expect($bech32->data->data)->toEqual($public_key_hex);
 });
 
 it('encodes and decodes nprofile', function () {
@@ -56,9 +56,9 @@ it('encodes and decodes nprofile', function () {
     $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
     expect('' . $bech32)->toMatch('/nprofile1\w+/');
         expect($bech32->type)->toEqual('nprofile');
-    expect($bech32->data['pubkey'])->toEqual($public_key_hex);
-    expect($bech32->data['relays'])->toContain('wss://relay.nostr.example.mydomain.example.com');
-    expect($bech32->data['relays'])->toContain('wss://nostr.banana.com');
+    expect($bech32->data->pubkey)->toEqual($public_key_hex);
+    expect($bech32->data->relays)->toContain('wss://relay.nostr.example.mydomain.example.com');
+    expect($bech32->data->relays)->toContain('wss://nostr.banana.com');
 });
 
 it('decodes nprofile without relays', function () {
@@ -67,8 +67,8 @@ it('decodes nprofile without relays', function () {
     $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
     expect('' . $bech32)->toMatch('/nprofile1\w+/');
     expect($bech32->type)->toEqual('nprofile');
-    expect($bech32->data['pubkey'])->toEqual($public_key_hex);
-    expect($bech32->data['relays'])->toBeEmpty();
+    expect($bech32->data->pubkey)->toEqual($public_key_hex);
+    expect($bech32->data->relays)->toBeEmpty();
 });
 
 it('encode and decode naddr', function () {
@@ -83,11 +83,11 @@ it('encode and decode naddr', function () {
     );
     expect('' . $bech32)->toMatch('/naddr1\w+/');
         expect($bech32->type)->toEqual('naddr');
-    expect($bech32->data['pubkey'])->toEqual($public_key_hex);
-    expect($bech32->data['relays'])->toContain($relays[0]);
-    expect($bech32->data['relays'])->toContain($relays[1]);
-    expect($bech32->data['kind'])->toEqual(30023);
-    expect($bech32->data['identifier'])->toEqual('banana');
+    expect($bech32->data->pubkey)->toEqual($public_key_hex);
+    expect($bech32->data->relays)->toContain($relays[0]);
+    expect($bech32->data->relays)->toContain($relays[1]);
+    expect($bech32->data->kind)->toEqual(30023);
+    expect($bech32->data->identifier)->toEqual('banana');
 });
 
 it('encode and decode nevent', function () {
@@ -101,9 +101,9 @@ it('encode and decode nevent', function () {
     );
     expect('' . $bech32)->toMatch('/nevent1\w+/');
     expect($bech32->type)->toEqual('nevent');
-    expect($bech32->data['id'])->toEqual($public_key_hex);
-    expect($bech32->data['relays'])->toContain($relays[0]);
-    expect($bech32->data['kind'])->toEqual(30023);
+    expect($bech32->data->id)->toEqual($public_key_hex);
+    expect($bech32->data->relays)->toContain($relays[0]);
+    expect($bech32->data->kind)->toEqual(30023);
 });
 
 it('encode and decode nevent with kind 0', function () {
@@ -117,9 +117,9 @@ it('encode and decode nevent with kind 0', function () {
     );
     expect('' . $bech32)->toMatch('/nevent1\w+/');
     expect($bech32->type)->toEqual('nevent');
-    expect($bech32->data['id'])->toEqual($public_key_hex);
-    expect($bech32->data['relays'])->toContain($relays[0]);
-    expect($bech32->data['kind'])->toEqual(0);
+    expect($bech32->data->id)->toEqual($public_key_hex);
+    expect($bech32->data->relays)->toContain($relays[0]);
+    expect($bech32->data->kind)->toEqual(0);
 });
 
 it('encode and decode naddr with empty "d"', function () {
@@ -134,10 +134,10 @@ it('encode and decode naddr with empty "d"', function () {
     );
     expect('' . $bech32)->toMatch('/naddr\w+/');
     expect($bech32->type)->toEqual('naddr');
-    expect($bech32->data['identifier'])->toEqual('');
-    expect($bech32->data['relays'])->toContain('wss://relay.nostr.example.mydomain.example.com');
-    expect($bech32->data['kind'])->toEqual(3);
-    expect($bech32->data['pubkey'])->toEqual($public_key_hex);
+    expect($bech32->data->identifier)->toEqual('');
+    expect($bech32->data->relays)->toContain('wss://relay.nostr.example.mydomain.example.com');
+    expect($bech32->data->kind)->toEqual(3);
+    expect($bech32->data->pubkey)->toEqual($public_key_hex);
 });
 
 it('decode naddr from habla.news', function () {
@@ -146,9 +146,9 @@ it('decode naddr from habla.news', function () {
             'naddr1qq98yetxv4ex2mnrv4esygrl54h466tz4v0re4pyuavvxqptsejl0vxcmnhfl60z3rth2xkpjspsgqqqw4rsf34vl5',
     );
     expect($bech32->type)->toEqual('naddr');
-    expect($bech32->data['pubkey'])->toEqual('7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194');
-    expect($bech32->data['kind'])->toEqual(30023);
-    expect($bech32->data['identifier'])->toEqual('references');
+    expect($bech32->data->pubkey)->toEqual('7fa56f5d6962ab1e3cd424e758c3002b8665f7b0d8dcee9fe9e288d7751ac194');
+    expect($bech32->data->kind)->toEqual(30023);
+    expect($bech32->data->identifier)->toEqual('references');
 });
 
 it('decode naddr from go-nostr with different TLV ordering', function () {
@@ -158,11 +158,11 @@ it('decode naddr from go-nostr with different TLV ordering', function () {
     );
 
     expect($bech32->type)->toEqual('naddr');
-    expect($bech32->data['pubkey'])->toEqual('3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d');
-    expect($bech32->data['relays'])->toContain('wss://relay.nostr.example.mydomain.example.com');
-    expect($bech32->data['relays'])->toContain('wss://nostr.banana.com');
-    expect($bech32->data['kind'])->toEqual(30023);
-    expect($bech32->data['identifier'])->toEqual('banana');
+    expect($bech32->data->pubkey)->toEqual('3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d');
+    expect($bech32->data->relays)->toContain('wss://relay.nostr.example.mydomain.example.com');
+    expect($bech32->data->relays)->toContain('wss://nostr.banana.com');
+    expect($bech32->data->kind)->toEqual(30023);
+    expect($bech32->data->identifier)->toEqual('banana');
 });
 
 it('is valid Bech32', function (string $method, string $bech32, bool $expected) {

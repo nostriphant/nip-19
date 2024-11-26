@@ -4,45 +4,32 @@ namespace nostriphant\NIP19;
 
 readonly class Bech32 {
 
-    public string $type;
-    public array $data;
+    public Data $data;
+
+    const TYPE_MAP = [
+        'nsec' => Data\NSec::class,
+        'npub' => Data\NPub::class,
+        'note' => Data\Note::class,
+        'nprofile' => Data\NProfile::class,
+        'naddr' => Data\NAddr::class,
+        'ncryptsec' => Data\NCryptSec::class,
+        'nevent' => Data\NEvent::class
+    ];
 
     public function __construct(private string $bech32) {
-        list($this->type, $decoded) = self::decodeRaw($this->bech32, 5000);
-        $this->data = match ($this->type) {
-            'nsec' => [self::fromBytesToHex($decoded)],
-            'npub' => [self::fromBytesToHex($decoded)],
-            'note' => [self::fromBytesToHex($decoded)],
-            'nprofile' => self::parseTLVNProfile($decoded),
-            'naddr' => self::parseTLVNAddr($decoded),
-            'nevent' => self::parseTLVNEvent($decoded),
-            'ncryptsec' => [self::fromBytesToUTF8($decoded)]
-        };
+        $this->data = self::decodeRaw($this->bech32, 5000);
+    }
+
+    public function __get(string $name): mixed {
+        if ($name === 'type') {
+            $class = get_class($this->data);
+            return strtolower(substr($class, strrpos($class, '\\') + 1));
+        }
     }
 
     static function __callStatic(string $name, array $arguments): self {
-        return new self(self::encodeRaw($name, match ($name) {
-                    'nsec' => self::fromHexToBytes($arguments[0]),
-                    'npub' => self::fromHexToBytes($arguments[0]),
-                    'note' => self::fromHexToBytes($arguments[0]),
-                    'nprofile' => self::encodeTLV(
-                            [self::fromHexToBytes($arguments['pubkey'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? [])
-                    ),
-                    'naddr' => self::encodeTLV(
-                            [self::fromUTF8ToBytes($arguments['identifier'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? []),
-                            [self::fromHexToBytes($arguments['pubkey'])],
-                            [self::fromIntegerToBytes($arguments['kind'])],
-                    ),
-                    'nevent' => self::encodeTLV(
-                            [self::fromHexToBytes($arguments['id'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? []),
-                            isset($arguments['author']) ? [self::fromHexToBytes($arguments['author'])] : [],
-                            [self::fromIntegerToBytes($arguments['kind'])],
-                    ),
-                    'ncryptsec' => self::fromUTF8ToBytes($arguments[0])
-                }));
+        $bytes = call_user_func_array([self::TYPE_MAP[$name], 'toBytes'], $arguments);
+        return new self(self::encodeRaw($name, $bytes));
     }
 
     public function __toString(): string {
@@ -51,41 +38,6 @@ readonly class Bech32 {
 
     static function array_entries(array $array) {
         return array_map(fn(mixed $key, mixed $value) => [$key, $value], array_keys($array), array_values($array));
-    }
-
-    static function parseTLVNProfile(array $data): array {
-        $tlv = self::parseTLV($data);
-        if (!isset($tlv[0]) || !isset($tlv[0][0])) {
-            throw new \Exception('missing TLV 0 for nprofile');
-        }
-        if (count($tlv[0][0]) !== 32) {
-            throw new \Exception('TLV 0 should be 32 bytes');
-        }
-
-        return [
-            "pubkey" => self::fromBytesToHex($tlv[0][0]),
-            "relays" => self::parseTLVRelays($tlv)
-        ];
-    }
-
-    static function parseTLVNAddr(array $data): array {
-        $tlv = self::parseTLV($data);
-        return [
-            "identifier" => self::fromBytesToUTF8($tlv[0][0]),
-            "pubkey" => self::parseTLVAuthor($tlv),
-            "kind" => self::parseTLVKind($tlv),
-            "relays" => self::parseTLVRelays($tlv)
-        ];
-    }
-
-    static function parseTLVNEvent(array $data): array {
-        $tlv = self::parseTLV($data);
-        return [
-            "id" => self::fromBytesToHex($tlv[0][0]),
-            "relays" => self::parseTLVRelays($tlv),
-            "author" => self::parseTLVAuthor($tlv),
-            "kind" => self::parseTLVKind($tlv)
-        ];
     }
 
     static function parseTLVRelays(array $tlv): array {
@@ -100,9 +52,9 @@ readonly class Bech32 {
         return isset($tlv[2][0]) ? self::fromBytesToHex($tlv[2][0]) : null;
     }
 
-    static function parseTLV(array $bits): array {
+    static function parseTLV(array $bytes): array {
         $result = [];
-        $rest = $bits;
+        $rest = $bytes;
         while (count($rest) > 0) {
             $type = array_shift($rest);
             $length = array_shift($rest);
@@ -139,7 +91,7 @@ readonly class Bech32 {
 
     private static function convertBech32ToHex(#[\SensitiveParameter] string $bech32_key): string {
         try {
-            return (new self($bech32_key))->data[0];
+            return (new self($bech32_key))->data->data;
         } catch (\Exception) {
             return '';
         }
@@ -152,6 +104,10 @@ readonly class Bech32 {
 
     static function fromUTF8ToBytes(string $utf8): array {
         return array_map('ord', mb_str_split($utf8));
+    }
+
+    static function fromRelaysToBytes(array $relays): array {
+        return array_map([self::class, 'fromUTF8ToBytes'], $relays);
     }
 
     static function fromIntegerToBytes(int $integer): array {
@@ -328,9 +284,6 @@ readonly class Bech32 {
 
         $encoded = [];
         for ($i = 0, $n = count($characters); $i < $n; $i++) {
-            if (isset(self::CHARSET[$characters[$i]]) === false) {
-                var_dump($hrp, $words);
-            }
             $encoded[$i] = self::CHARSET[$characters[$i]];
         }
 
@@ -348,7 +301,7 @@ readonly class Bech32 {
         1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1
     ];
 
-    static function decodeRaw(string $sBech, int $limit = 90): array {
+    static function decodeRaw(string $sBech, int $limit = 90): Data {
         $length = strlen($sBech);
 
         if ($length < 8 || $length > $limit) {
@@ -409,6 +362,6 @@ readonly class Bech32 {
             throw new \Exception('Invalid bech32 checksum');
         }
 
-        return [$hrp, self::decodeBits(array_slice($data, 0, -6))];
+        return new (self::TYPE_MAP[$hrp])(self::decodeBits(array_slice($data, 0, -6)));
     }
 }
