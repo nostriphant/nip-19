@@ -15,7 +15,8 @@ readonly class Bech32 {
             'note' => [self::fromBytesToHex(self::decodeBits($decoded))],
             'nprofile' => self::parseTLVNProfile($decoded),
             'naddr' => self::parseTLVNAddr($decoded),
-            'nevent' => self::parseTLVNEvent($decoded)
+            'nevent' => self::parseTLVNEvent($decoded),
+            'ncryptsec' => [self::fromBytesToUTF8($decoded)]
         };
     }
 
@@ -39,7 +40,8 @@ readonly class Bech32 {
                             array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? []),
                             isset($arguments['author']) ? [self::fromHexToBytes($arguments['author'])] : [],
                             [self::fromIntegerToBytes($arguments['kind'])],
-                    )
+                    ),
+                    'ncryptsec' => self::fromUTF8ToBytes($arguments[0])
                 }));
     }
 
@@ -192,11 +194,12 @@ readonly class Bech32 {
 
     static function isValid(string $expected_type, string $bech32) {
         try {
-            $decoded = decode($bech32);
+            $decoded = new self($bech32);
+            return $decoded->type === $expected_type;
         } catch (\Exception $ex) {
-            return false;
+            
         }
-        return $decoded[0] === $expected_type;
+        return false;
     }
 
     static function isValidNProfile(string $bech32): bool {
@@ -204,7 +207,7 @@ readonly class Bech32 {
     }
 
     static function isValidNAddress(string $bech32): bool {
-        return self::isValid('naddress', $bech32);
+        return self::isValid('naddr', $bech32);
     }
 
     static function isValidNSec(string $bech32): bool {
@@ -229,13 +232,14 @@ readonly class Bech32 {
 
     const GENERATOR = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
-    static function polyMod(array $values, int $numValues): int {
+    static function polyMod(array $values) {
+        $numValues = count($values);
         $chk = 1;
         for ($i = 0; $i < $numValues; $i++) {
             $top = $chk >> 25;
             $chk = ($chk & 0x1ffffff) << 5 ^ $values[$i];
 
-            for ($j = 0; $j < 5; $j++) {
+            for ($j = 0; $j < count(self::GENERATOR); $j++) {
                 $value = (($top >> $j) & 1) ? self::GENERATOR[$j] : 0;
                 $chk ^= $value;
             }
@@ -244,16 +248,16 @@ readonly class Bech32 {
         return $chk;
     }
 
-    static function hrpExpand(string $hrp, int $hrpLen): array {
+    static function hrpExpand(string $hrp) {
+        $hrpLen = strlen($hrp);
         $expand1 = [];
         $expand2 = [];
         for ($i = 0; $i < $hrpLen; $i++) {
-            $o = ord($hrp[$i]);
+            $o = \ord($hrp[$i]);
             $expand1[] = $o >> 5;
             $expand2[] = $o & 31;
         }
-
-        return array_merge($expand1, [0], $expand2);
+        return \array_merge($expand1, [0], $expand2);
     }
 
     static function decodeBits(array $data) {
@@ -300,7 +304,7 @@ readonly class Bech32 {
 
     static function createChecksum(string $hrp, array $convertedDataChars): array {
         $values = array_merge(self::hrpExpand($hrp, strlen($hrp)), $convertedDataChars);
-        $polyMod = self::polyMod(array_merge($values, [0, 0, 0, 0, 0, 0]), count($values) + 6) ^ 1;
+        $polyMod = self::polyMod(array_merge($values, [0, 0, 0, 0, 0, 0])) ^ 1;
         $results = [];
         for ($i = 0; $i < 6; $i++) {
             $results[$i] = ($polyMod >> 5 * (5 - $i)) & 31;
@@ -310,7 +314,7 @@ readonly class Bech32 {
     }
 
     static function verifyChecksum(string $hrp, array $convertedDataChars): bool {
-        $expandHrp = self::hrpExpand($hrp, strlen($hrp));
+        $expandHrp = self::hrpExpand($hrp);
         $r = array_merge($expandHrp, $convertedDataChars);
         return self::polyMod($r, count($r)) === 1;
     }
@@ -333,34 +337,78 @@ readonly class Bech32 {
         return "{$hrp}1" . implode('', $encoded);
     }
 
+    const CHARKEY_KEY = [
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        15, -1, 10, 17, 21, 20, 26, 30, 7, 5, -1, -1, -1, -1, -1, -1,
+        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
+        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1,
+        -1, 29, -1, 24, 13, 25, 9, 8, 23, -1, 18, 22, 31, 27, 19, -1,
+        1, 0, 3, 16, 11, 28, 12, 14, 6, 4, 2, -1, -1, -1, -1, -1
+    ];
+
     static function decodeRaw(string $sBech, int $limit = 90): array {
         $length = strlen($sBech);
 
         if ($length < 8 || $length > $limit) {
-            throw new \InvalidArgumentException("invalid string length: $length ($sBech). Expected (8..$limit)");
-        }
-        // don't allow mixed case
-        $lowered = strtolower($sBech);
-        if ($sBech !== $lowered && $sBech !== strtoupper($sBech)) {
-            throw new \InvalidArgumentException("String must be lowercase or uppercase");
+            throw new \Exception("invalid string length: $length ($sBech). Expected (8..$limit)");
         }
 
-        $sepIndex = strrpos($sBech, '1');
-        if ($sepIndex === false) {
-            throw new \InvalidArgumentException("Letter '1' must be present between prefix and data ($sBech) only");
+        $chars = array_values(unpack('C*', $sBech));
+
+        $haveUpper = false;
+        $haveLower = false;
+        $positionOne = -1;
+
+        for ($i = 0; $i < $length; $i++) {
+            $x = $chars[$i];
+            if ($x < 33 || $x > 126) {
+                throw new \Exception('Out of range character in bech32 string');
+            }
+
+            if ($x >= 0x61 && $x <= 0x7a) {
+                $haveLower = true;
+            }
+
+            if ($x >= 0x41 && $x <= 0x5a) {
+                $haveUpper = true;
+                $x = $chars[$i] = $x + 0x20;
+            }
+
+            // find location of last '1' character
+            if ($x === 0x31) {
+                $positionOne = $i;
+            }
         }
 
-        list($prefix, $data) = explode('1', $sBech, 2);
-        if (strlen($data) < 6) {
-            throw new \InvalidArgumentException('Bech32 data must be at least 6 characters long');
+        if ($haveUpper && $haveLower) {
+            throw new \Exception('Data contains mixture of higher/lower case characters');
         }
 
-        $words = array_map(fn(string $char) => strpos(self::CHARSET, $char), str_split(substr($data, 0, -6)));
-        $sum = self::verifyChecksum($prefix, $words);
-        if (str_ends_with($data, $sum) === false) {
-            throw new \Exception("Invalid checksum in $sBech: expected '$sum'.");
+        if ($positionOne === -1) {
+            throw new \Exception("Missing separator character");
         }
 
-        return [$prefix, $words];
+        if ($positionOne < 1) {
+            throw new \Exception("Empty HRP");
+        }
+
+        if (($positionOne + 7) > $length) {
+            throw new \Exception('Too short checksum');
+        }
+
+        $hrp = \pack("C*", ...\array_slice($chars, 0, $positionOne));
+
+        $data = [];
+        for ($i = $positionOne + 1; $i < $length; $i++) {
+            $data[] = ($chars[$i] & 0x80) ? -1 : self::CHARKEY_KEY[$chars[$i]];
+        }
+
+        if (!self::verifyChecksum($hrp, $data)) {
+            throw new \Exception('Invalid bech32 checksum');
+        }
+
+        return [$hrp, array_slice($data, 0, -6)];
     }
 }
