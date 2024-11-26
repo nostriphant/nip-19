@@ -62,7 +62,7 @@ readonly class Bech32 {
 
         return [
             "pubkey" => self::fromBytesToHex($tlv[0][0]),
-            "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : []
+            "relays" => self::parseTLVRelays($tlv)
         ];
     }
 
@@ -70,9 +70,9 @@ readonly class Bech32 {
         $tlv = self::parseTLV($data);
         return [
             "identifier" => self::fromBytesToUTF8($tlv[0][0]),
-            "pubkey" => self::fromBytesToHex($tlv[2][0]),
-            "kind" => self::fromBytesToInteger($tlv[3][0]),
-            "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : []
+            "pubkey" => self::parseTLVAuthor($tlv),
+            "kind" => self::parseTLVKind($tlv),
+            "relays" => self::parseTLVRelays($tlv)
         ];
     }
 
@@ -80,10 +80,22 @@ readonly class Bech32 {
         $tlv = self::parseTLV($data);
         return [
             "id" => self::fromBytesToHex($tlv[0][0]),
-            "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : [],
-            "author" => isset($tlv[2][0]) ? self::fromBytesToHex($tlv[2][0]) : null,
-            "kind" => isset($tlv[3][0]) ? self::fromBytesToInteger($tlv[3][0]) : null
+            "relays" => self::parseTLVRelays($tlv),
+            "author" => self::parseTLVAuthor($tlv),
+            "kind" => self::parseTLVKind($tlv)
         ];
+    }
+
+    static function parseTLVRelays(array $tlv): array {
+        return isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : [];
+    }
+
+    static function parseTLVKind(array $tlv): ?int {
+        return isset($tlv[3][0]) ? self::fromBytesToInteger($tlv[3][0]) : null;
+    }
+
+    static function parseTLVAuthor(array $tlv): ?string {
+        return isset($tlv[2][0]) ? self::fromBytesToHex($tlv[2][0]) : null;
     }
 
     static function parseTLV(array $bits): array {
