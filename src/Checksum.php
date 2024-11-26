@@ -10,7 +10,7 @@ readonly class Checksum {
         
     }
 
-    public function __invoke(int $length = self::CHECKSUM_LENGTH): array {
+    public function __invoke(callable $encoder, int $length = self::CHECKSUM_LENGTH): string {
         $polyMod = new PolyMod($this->hrp, $this->words);
         $polyModChecksum = PolyMod::createChecksumFor($polyMod, $length)() ^ 1;
         $results = [];
@@ -18,7 +18,7 @@ readonly class Checksum {
             $results[$i] = ($polyModChecksum >> 5 * (5 - $i)) & 31;
         }
 
-        return array_merge($this->words, $results);
+        return "{$this->hrp}1" . array_reduce(array_merge($this->words, $results), $encoder, '');
     }
 
     static function validate(string $hrp, array $data, int $length = self::CHECKSUM_LENGTH) {
