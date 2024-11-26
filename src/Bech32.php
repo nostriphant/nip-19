@@ -220,9 +220,10 @@ readonly class Bech32 {
     }
 
     static function createChecksum(PolyMod $polyMod): array {
+        $polyModChecksum = PolyMod::createChecksumFor($polyMod, 6)() ^ 1;
         $results = [];
         for ($i = 0; $i < 6; $i++) {
-            $results[$i] = (($polyMod() ^ 1) >> 5 * (5 - $i)) & 31;
+            $results[$i] = ($polyModChecksum >> 5 * (5 - $i)) & 31;
         }
 
         return $results;
@@ -236,7 +237,7 @@ readonly class Bech32 {
 
     static function encodeRaw(string $hrp, array $bytes): string {
         $words = self::convertBits($bytes, 8, 5, true);
-        $checksum = self::createChecksum(new PolyMod($hrp, array_merge($words, [0, 0, 0, 0, 0, 0])));
+        $checksum = self::createChecksum(new PolyMod($hrp, $words));
         $characters = array_merge($words, $checksum);
 
         $encoded = [];
