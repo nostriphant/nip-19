@@ -240,11 +240,7 @@ readonly class Bech32 {
         $checksum = self::createChecksum(new PolyMod($hrp, $words));
         $characters = array_merge($words, $checksum);
 
-        $encoded = [];
-        for ($i = 0, $n = count($characters); $i < $n; $i++) {
-            $encoded[$i] = self::CHARSET[$characters[$i]];
-        }
-
+        $encoded = array_map(fn(int $character) => self::CHARSET[$character], $characters);
         return "{$hrp}1" . implode('', $encoded);
     }
 
