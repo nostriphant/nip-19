@@ -10,9 +10,9 @@ readonly class Bech32 {
     public function __construct(private string $bech32) {
         list($this->type, $decoded) = self::decodeRaw($this->bech32, 5000);
         $this->data = match ($this->type) {
-            'nsec' => [self::fromBytesToHex(self::decodeBits($decoded))],
-            'npub' => [self::fromBytesToHex(self::decodeBits($decoded))],
-            'note' => [self::fromBytesToHex(self::decodeBits($decoded))],
+            'nsec' => [self::fromBytesToHex($decoded)],
+            'npub' => [self::fromBytesToHex($decoded)],
+            'note' => [self::fromBytesToHex($decoded)],
             'nprofile' => self::parseTLVNProfile($decoded),
             'naddr' => self::parseTLVNAddr($decoded),
             'nevent' => self::parseTLVNEvent($decoded),
@@ -102,7 +102,7 @@ readonly class Bech32 {
 
     static function parseTLV(array $bits): array {
         $result = [];
-        $rest = self::decodeBits($bits);
+        $rest = $bits;
         while (count($rest) > 0) {
             $type = array_shift($rest);
             $length = array_shift($rest);
@@ -409,6 +409,6 @@ readonly class Bech32 {
             throw new \Exception('Invalid bech32 checksum');
         }
 
-        return [$hrp, array_slice($data, 0, -6)];
+        return [$hrp, self::decodeBits(array_slice($data, 0, -6))];
     }
 }
