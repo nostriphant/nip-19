@@ -220,9 +220,9 @@ readonly class Bech32 {
     }
 
     static function createChecksum(PolyMod $polyMod): array {
-        $polyModChecksum = PolyMod::createChecksumFor($polyMod, 6)() ^ 1;
+        $polyModChecksum = PolyMod::createChecksumFor($polyMod, self::CHECKSUM_LENGTH)() ^ 1;
         $results = [];
-        for ($i = 0; $i < 6; $i++) {
+        for ($i = 0; $i < self::CHECKSUM_LENGTH; $i++) {
             $results[$i] = ($polyModChecksum >> 5 * (5 - $i)) & 31;
         }
 
@@ -234,6 +234,7 @@ readonly class Bech32 {
     }
 
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    const CHECKSUM_LENGTH = 6;
 
     static function encodeRaw(string $hrp, array $bytes): string {
         $words = self::convertBits($bytes, 8, 5, true);
@@ -310,6 +311,6 @@ readonly class Bech32 {
             throw new \Exception('Invalid bech32 checksum');
         }
 
-        return new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -6), 5, 8, false));
+        return new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -self::CHECKSUM_LENGTH), 5, 8, false));
     }
 }
