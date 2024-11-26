@@ -185,18 +185,6 @@ readonly class Bech32 {
         return self::isValid('nevent', $bech32);
     }
 
-    static function hrpExpand(string $hrp) {
-        $hrpLen = strlen($hrp);
-        $expand1 = [];
-        $expand2 = [];
-        for ($i = 0; $i < $hrpLen; $i++) {
-            $o = \ord($hrp[$i]);
-            $expand1[] = $o >> 5;
-            $expand2[] = $o & 31;
-        }
-        return \array_merge($expand1, [0], $expand2);
-    }
-
     static function convertBits(array $data, int $fromBits, int $toBits, bool $pad = true): array {
         $inLen = count($data);
         $acc = 0;
@@ -231,28 +219,24 @@ readonly class Bech32 {
         return $ret;
     }
 
-    static function createChecksum(string $hrp, array $convertedDataChars): array {
-        $values = array_merge(self::hrpExpand($hrp, strlen($hrp)), $convertedDataChars);
-        $polyMod = PolyMod::calculate(array_merge($values, [0, 0, 0, 0, 0, 0])) ^ 1;
+    static function createChecksum(PolyMod $polyMod): array {
         $results = [];
         for ($i = 0; $i < 6; $i++) {
-            $results[$i] = ($polyMod >> 5 * (5 - $i)) & 31;
+            $results[$i] = (($polyMod() ^ 1) >> 5 * (5 - $i)) & 31;
         }
 
         return $results;
     }
 
-    static function verifyChecksum(string $hrp, array $convertedDataChars): bool {
-        $expandHrp = self::hrpExpand($hrp);
-        $r = array_merge($expandHrp, $convertedDataChars);
-        return PolyMod::calculate($r) === 1;
+    static function verifyChecksum(PolyMod $polyMod): bool {
+        return $polyMod() === 1;
     }
 
     const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 
     static function encodeRaw(string $hrp, array $bytes): string {
         $words = self::convertBits($bytes, 8, 5, true);
-        $checksum = self::createChecksum($hrp, $words);
+        $checksum = self::createChecksum(new PolyMod($hrp, array_merge($words, [0, 0, 0, 0, 0, 0])));
         $characters = array_merge($words, $checksum);
 
         $encoded = [];
@@ -331,7 +315,7 @@ readonly class Bech32 {
             $data[] = ($chars[$i] & 0x80) ? -1 : self::CHARKEY_KEY[$chars[$i]];
         }
 
-        if (!self::verifyChecksum($hrp, $data)) {
+        if (!self::verifyChecksum(new PolyMod($hrp, $data))) {
             throw new \Exception('Invalid bech32 checksum');
         }
 
