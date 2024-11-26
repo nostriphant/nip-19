@@ -21,7 +21,7 @@ it('converts between bech32 and hexidecimal', function () {
 //import {
 //  decode,
 //  naddrEncode,
-//  Bech32::decode,
+//  new Bech32,
 //  npubEncode,
 //  nsecEncode,
 //  neventEncode,
@@ -34,7 +34,7 @@ it('converts between bech32 and hexidecimal', function () {
 it('encodes and decodes nsec', function () {
     $private_key_hex = '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa';
     $nsec = Bech32::toNsec($private_key_hex);
-    $bech32 = Bech32::decode($nsec);
+    $bech32 = new Bech32($nsec);
     expect('' . $bech32)->toMatch('/nsec1\w+/');
     expect($bech32->type)->toEqual('nsec');
     expect($bech32->data[0])->toEqual($private_key_hex);
@@ -43,7 +43,7 @@ it('encodes and decodes nsec', function () {
 it('encodes and decodes npub', function () {
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $npub = Bech32::toNpub($public_key_hex);
-    $bech32 = Bech32::decode($npub);
+    $bech32 = new Bech32($npub);
     expect('' . $bech32)->toMatch('/npub1\w+/');
         expect($bech32->type)->toEqual('npub');
     expect($bech32->data[0])->toEqual($public_key_hex);
@@ -53,7 +53,7 @@ it('encodes and decodes nprofile', function () {
 
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
-    $bech32 = new Bech32('nprofile', pubkey: $public_key_hex, relays: $relays);
+    $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
     expect('' . $bech32)->toMatch('/nprofile1\w+/');
         expect($bech32->type)->toEqual('nprofile');
     expect($bech32->data['pubkey'])->toEqual($public_key_hex);
@@ -64,7 +64,7 @@ it('encodes and decodes nprofile', function () {
 it('decodes nprofile without relays', function () {
     $public_key_hex = '97c70a44366a6535c145b333f973ea86dfdc2d7a99da618c40c64705ad98e322';
     $relays = [];
-    $bech32 = new Bech32('nprofile', pubkey: $public_key_hex, relays: $relays);
+    $bech32 = Bech32::nprofile(pubkey: $public_key_hex, relays: $relays);
     expect('' . $bech32)->toMatch('/nprofile1\w+/');
     expect($bech32->type)->toEqual('nprofile');
     expect($bech32->data['pubkey'])->toEqual($public_key_hex);
@@ -75,7 +75,7 @@ it('encode and decode naddr', function () {
 
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
-    $bech32 = new Bech32('naddr',
+    $bech32 = Bech32::naddr(
             pubkey: $public_key_hex,
             relays: $relays,
             kind: 30023,
@@ -94,7 +94,7 @@ it('encode and decode nevent', function () {
 
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
-    $bech32 = new Bech32('nevent',
+    $bech32 = Bech32::nevent(
             id: $public_key_hex,
             relays: $relays,
             kind: 30023,
@@ -110,7 +110,7 @@ it('encode and decode nevent with kind 0', function () {
 
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
-    $bech32 = new Bech32('nevent',
+    $bech32 = Bech32::nevent(
             id: $public_key_hex,
             relays: $relays,
             kind: 0,
@@ -126,7 +126,7 @@ it('encode and decode naddr with empty "d"', function () {
 
     $public_key_hex = '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e';
     $relays = ['wss://relay.nostr.example.mydomain.example.com', 'wss://nostr.banana.com'];
-    $bech32 = new Bech32('naddr',
+    $bech32 = Bech32::naddr(
             identifier: '',
             pubkey: $public_key_hex,
             relays: $relays,
@@ -142,7 +142,7 @@ it('encode and decode naddr with empty "d"', function () {
 
 it('decode naddr from habla.news', function () {
 
-    $bech32 = Bech32::decode(
+    $bech32 = new Bech32(
             'naddr1qq98yetxv4ex2mnrv4esygrl54h466tz4v0re4pyuavvxqptsejl0vxcmnhfl60z3rth2xkpjspsgqqqw4rsf34vl5',
     );
     expect($bech32->type)->toEqual('naddr');
@@ -153,7 +153,7 @@ it('decode naddr from habla.news', function () {
 
 it('decode naddr from go-nostr with different TLV ordering', function () {
 
-    $bech32 = Bech32::decode(
+    $bech32 = new Bech32(
             'naddr1qqrxyctwv9hxzq3q80cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsxpqqqp65wqfwwaehxw309aex2mrp0yhxummnw3ezuetcv9khqmr99ekhjer0d4skjm3wv4uxzmtsd3jjucm0d5q3vamnwvaz7tmwdaehgu3wvfskuctwvyhxxmmd0zfmwx',
     );
 

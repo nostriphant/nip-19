@@ -4,48 +4,47 @@ namespace nostriphant\NIP19;
 
 readonly class Bech32 {
 
+    public string $type;
     public array $data;
 
-    public function __construct(public string $type, mixed ...$data) {
-        $this->data = $data;
+    public function __construct(private string $bech32) {
+        list($this->type, $decoded) = self::decodeRaw($this->bech32, 5000);
+        $this->data = match ($this->type) {
+            'nsec' => [self::fromBytesToHex(self::decodeBits($decoded))],
+            'npub' => [self::fromBytesToHex(self::decodeBits($decoded))],
+            'note' => [self::fromBytesToHex(self::decodeBits($decoded))],
+            'nprofile' => self::parseTLVNProfile($decoded),
+            'naddr' => self::parseTLVNAddr($decoded),
+            'nevent' => self::parseTLVNEvent($decoded)
+        };
+    }
+
+    static function __callStatic(string $name, array $arguments): self {
+        return new self(self::encodeRaw($name, match ($name) {
+                    'nsec' => self::fromHexToBytes($arguments[0]),
+                    'npub' => self::fromHexToBytes($arguments[0]),
+                    'note' => self::fromHexToBytes($arguments[0]),
+                    'nprofile' => self::encodeTLV(
+                            [self::fromHexToBytes($arguments['pubkey'])],
+                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? [])
+                    ),
+                    'naddr' => self::encodeTLV(
+                            [self::fromUTF8ToBytes($arguments['identifier'])],
+                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? []),
+                            [self::fromHexToBytes($arguments['pubkey'])],
+                            [self::fromIntegerToBytes($arguments['kind'])],
+                    ),
+                    'nevent' => self::encodeTLV(
+                            [self::fromHexToBytes($arguments['id'])],
+                            array_map([self::class, 'fromUTF8ToBytes'], $arguments['relays'] ?? []),
+                            isset($arguments['author']) ? [self::fromHexToBytes($arguments['author'])] : [],
+                            [self::fromIntegerToBytes($arguments['kind'])],
+                    )
+                }));
     }
 
     public function __toString(): string {
-        return self::encodeRaw($this->type, match ($this->type) {
-                    'nsec' => self::fromHexToBytes($this->data[0]),
-                    'npub' => self::fromHexToBytes($this->data[0]),
-                    'note' => self::fromHexToBytes($this->data[0]),
-                    'nprofile' => self::encodeTLV(
-                            [self::fromHexToBytes($this->data['pubkey'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $this->data['relays'] ?? [])
-                    ),
-                    'naddr' => self::encodeTLV(
-                            [self::fromUTF8ToBytes($this->data['identifier'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $this->data['relays'] ?? []),
-                            [self::fromHexToBytes($this->data['pubkey'])],
-                            [self::fromIntegerToBytes($this->data['kind'])],
-                    ),
-                    'nevent' => self::encodeTLV(
-                            [self::fromHexToBytes($this->data['id'])],
-                            array_map([self::class, 'fromUTF8ToBytes'], $this->data['relays'] ?? []),
-                            isset($this->data['author']) ? [self::fromHexToBytes($this->data['author'])] : [],
-                            [self::fromIntegerToBytes($this->data['kind'])],
-                    )
-        });
-    }
-
-    static function decode(string $bech32): self {
-        list($hrp, $decoded) = self::decodeRaw($bech32, 5000);
-
-
-
-        return new self(...array_merge(match ($hrp) {
-                    'nsec' => [$hrp, self::fromBytesToHex(self::decodeBits($decoded))],
-                    'npub' => [$hrp, self::fromBytesToHex(self::decodeBits($decoded))],
-                    'note' => [$hrp, self::fromBytesToHex(self::decodeBits($decoded))],
-                    'nprofile' => self::parseTLVNProfile($decoded),
-                    'naddr' => self::parseTLVNAddr($decoded)
-                }));
+        return $this->bech32;
     }
 
     static function array_entries(array $array) {
@@ -62,20 +61,28 @@ readonly class Bech32 {
         }
 
         return [
-            "type" => 'nprofile',
             "pubkey" => self::fromBytesToHex($tlv[0][0]),
-            "relays" => $tlv[1] ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : [],
+            "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : []
         ];
     }
 
     static function parseTLVNAddr(array $data): array {
         $tlv = self::parseTLV($data);
         return [
-            "type" => 'naddr',
             "identifier" => self::fromBytesToUTF8($tlv[0][0]),
             "pubkey" => self::fromBytesToHex($tlv[2][0]),
             "kind" => self::fromBytesToInteger($tlv[3][0]),
             "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : []
+        ];
+    }
+
+    static function parseTLVNEvent(array $data): array {
+        $tlv = self::parseTLV($data);
+        return [
+            "id" => self::fromBytesToHex($tlv[0][0]),
+            "relays" => isset($tlv[1]) ? array_map([self::class, 'fromBytesToUTF8'], $tlv[1]) : [],
+            "author" => isset($tlv[2][0]) ? self::fromBytesToHex($tlv[2][0]) : null,
+            "kind" => isset($tlv[3][0]) ? self::fromBytesToInteger($tlv[3][0]) : null
         ];
     }
 
@@ -118,7 +125,7 @@ readonly class Bech32 {
 
     private static function convertBech32ToHex(#[\SensitiveParameter] string $bech32_key): string {
         try {
-            return self::decode($bech32_key)->data[0];
+            return (new self($bech32_key))->data[0];
         } catch (\Exception) {
             return '';
         }
@@ -148,7 +155,7 @@ readonly class Bech32 {
 
     private static function convertHexToBech32(#[\SensitiveParameter] string $hex_key, string $prefix) {
         try {
-            return '' . (new self($prefix, $hex_key));
+            return self::encodeRaw($prefix, self::fromHexToBytes($hex_key));
         } catch (\Exception) {
             return '';
         }
