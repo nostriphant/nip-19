@@ -85,7 +85,7 @@ readonly class Bech32 {
             throw new \Exception('Invalid bech32 checksum');
         }
 
-        $this->data = new (self::TYPE_MAP[$hrp])(self::convertBits(array_slice($data, 0, -self::CHECKSUM_LENGTH), 5, 8, false));
+        $this->data = new (self::TYPE_MAP[$hrp])(Bits::decode(array_slice($data, 0, -self::CHECKSUM_LENGTH)));
     }
 
     public function __get(string $name): mixed {
@@ -253,40 +253,6 @@ readonly class Bech32 {
         return self::isValid('nevent', $bech32);
     }
 
-    static function convertBits(array $data, int $fromBits, int $toBits, bool $pad = true): array {
-        $inLen = count($data);
-        $acc = 0;
-        $bits = 0;
-        $ret = [];
-        $maxv = (1 << $toBits) - 1;
-        $maxacc = (1 << ($fromBits + $toBits - 1)) - 1;
-
-        for ($i = 0; $i < $inLen; $i++) {
-            $value = $data[$i];
-            if ($value < 0 || $value >> $fromBits) {
-                throw new \Exception('Invalid value for convert bits');
-            }
-
-            $acc = (($acc << $fromBits) | $value) & $maxacc;
-            $bits += $fromBits;
-
-            while ($bits >= $toBits) {
-                $bits -= $toBits;
-                $ret[] = (($acc >> $bits) & $maxv);
-            }
-        }
-
-        if ($pad) {
-            if ($bits) {
-                $ret[] = ($acc << $toBits - $bits) & $maxv;
-            }
-        } else if ($bits >= $fromBits || ((($acc << ($toBits - $bits))) & $maxv)) {
-            throw new \Exception('Invalid data');
-        }
-
-        return $ret;
-    }
-
     static function createChecksum(PolyMod $polyMod): array {
         $polyModChecksum = PolyMod::createChecksumFor($polyMod, self::CHECKSUM_LENGTH)() ^ 1;
         $results = [];
@@ -303,7 +269,7 @@ readonly class Bech32 {
 
 
     static function encodeRaw(string $hrp, array $bytes): string {
-        $words = self::convertBits($bytes, 8, 5, true);
+        $words = Bits::encode($bytes);
         $checksum = self::createChecksum(new PolyMod($hrp, $words));
         $characters = array_merge($words, $checksum);
         $encoded = array_map(fn(int $character) => self::BECH32_CHARSET[$character], $characters);
