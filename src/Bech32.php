@@ -182,39 +182,6 @@ readonly class Bech32 {
         return $uint8Array;
     }
 
-    static function toNpub(string $hex) {
-        return self::convertHexToBech32($hex, 'npub');
-    }
-
-    static function fromNpub(string $npub) {
-        return self::convertBech32ToHex($npub, 'npub');
-    }
-
-
-    static function toNsec(#[\SensitiveParameter] string $hex): string {
-        return self::convertHexToBech32($hex, 'nsec');
-    }
-
-    static function fromNsec(#[\SensitiveParameter] string $nsec): string {
-        return self::convertBech32ToHex($nsec, 'nsec');
-    }
-
-    private static function convertHexToBech32(#[\SensitiveParameter] string $hex_key, string $prefix) {
-        try {
-            return self::encodeRaw($prefix, self::fromHexToBytes($hex_key));
-        } catch (\Exception) {
-            return '';
-        }
-    }
-
-    private static function convertBech32ToHex(#[\SensitiveParameter] string $bech32_key): string {
-        try {
-            return (new self($bech32_key))->data->data;
-        } catch (\Exception) {
-            return '';
-        }
-    }
-
     static function isValid(string $expected_type, string $bech32) {
         try {
             $decoded = new self($bech32);

@@ -15,21 +15,6 @@ it('converts between bech32 and hexidecimal', function () {
     expect((new Bech32($private_key_bech32))->data->data)->toBe($private_key_hex);
     expect((string) Bech32::nsec($private_key_hex))->toBe($private_key_bech32);
 });
-//;
-//import { test, expect, describe } from 'bun:test';
-//import { generateSecretKey, getPublicKey } from './pure.ts';
-//import {
-//  decode,
-//  naddrEncode,
-//  new Bech32,
-//  npubEncode,
-//  nsecEncode,
-//  neventEncode,
-//  type AddressPointer,
-//  type ProfilePointer,
-//  EventPointer,
-//  NostrTypeGuard,
-//} from './nip19.ts';
 
 it('encodes and decodes nsec', function () {
     $private_key_hex = '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa';
