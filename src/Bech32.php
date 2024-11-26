@@ -97,7 +97,7 @@ readonly class Bech32 {
 
     static function __callStatic(string $name, array $arguments): self {
         $bytes = call_user_func_array([self::TYPE_MAP[$name], 'toBytes'], $arguments);
-        return new self(self::encodeRaw($name, $bytes));
+        return new self("{$name}1" . self::encodeRaw(new Checksum($name, Bits::encode($bytes))));
     }
 
     public function __toString(): string {
@@ -224,11 +224,9 @@ readonly class Bech32 {
         return self::isValid('nevent', $bech32);
     }
 
-    static function encodeRaw(string $hrp, array $bytes): string {
-        $words = Bits::encode($bytes);
-        $checksum = new Checksum(new PolyMod($hrp, $words));
-        $characters = $checksum($words);
+    static function encodeRaw(Checksum $checksum): string {
+        $characters = $checksum();
         $encoded = array_map(fn(int $character) => self::BECH32_CHARSET[$character], $characters);
-        return "{$hrp}1" . implode('', $encoded);
+        return implode('', $encoded);
     }
 }
